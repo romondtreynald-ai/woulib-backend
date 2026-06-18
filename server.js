@@ -13,7 +13,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
-app.use(cors());
+app.use(cors({ origin: ["https://woulib-frontend.vercel.app", "http://localhost:3000"] }));
 app.use(express.json());
 
 // Public routes
