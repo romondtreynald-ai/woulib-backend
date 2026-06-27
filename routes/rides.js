@@ -18,7 +18,7 @@ router.post('/book', async (req, res) => {
 
     // Notify nearby drivers (in a real app, filter by location using PostGIS)
     // For now, broadcast to all online drivers
-    req.io.emit('ride:new_request', {
+    if(req.io) req.io.emit('ride:new_request', {
       rideId: ride.id,
       pickup,
       destination,
