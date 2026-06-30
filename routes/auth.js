@@ -7,13 +7,16 @@ const { db } = require('../services/database');
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, password, role } = req.body; // role: 'rider' or 'driver'
+    const { name, phone, password, role, cinNumber, licensePlate, vehicleModel, licensePhotoUrl } = req.body;
 
     if (!name || !phone || !password || !role) {
       return res.status(400).json({ error: 'All fields required' });
     }
 
-    // Check if phone already registered
+    if (role === 'driver' && (!cinNumber || !licensePlate || !vehicleModel)) {
+      return res.status(400).json({ error: 'Chofè yo bezwen CIN, plak machin, ak modèl machin' });
+    }
+
     const existing = await db.query(
       'SELECT id FROM users WHERE phone = $1', [phone]
     );
@@ -24,9 +27,9 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await db.query(
-      `INSERT INTO users (name, phone, password, role, created_at)
-       VALUES ($1, $2, $3, $4, NOW()) RETURNING id, name, phone, role`,
-      [name, phone, hashedPassword, role]
+      `INSERT INTO users (name, phone, password, role, cin_number, license_plate, vehicle_model, license_photo_url, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING id, name, phone, role`,
+      [name, phone, hashedPassword, role, cinNumber || null, licensePlate || null, vehicleModel || null, licensePhotoUrl || null]
     );
 
     const user = result.rows[0];
@@ -38,8 +41,8 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({ user, token });
   } catch (err) {
-    res.status(500).json({ error: err.message, stack: err.stack });
-    res.status(500).json({ error: 'Server error' });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -47,14 +50,12 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { phone, password } = req.body;
+    if (!phone || !password) return res.status(400).json({ error: 'Phone and password required' });
 
-    const result = await db.query(
-      'SELECT * FROM users WHERE phone = $1', [phone]
-    );
+    const result = await db.query('SELECT * FROM users WHERE phone = $1', [phone]);
+    if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+
     const user = result.rows[0];
-
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
